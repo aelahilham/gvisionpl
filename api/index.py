@@ -8,13 +8,13 @@ app = Flask(__name__)
 def get_playlist(path):
     # --- MASUKIN LINK HTTP TOOLKIT LO DI BAWAH INI ---
     playlists = [
-        {"url": "http://liveloveyou.my.id/ec147502/ux.html", "group": "LIVE TV NEW"},
-        {"url": "http://liveloveyou.my.id/ec147502/pelme1.html", "group": "LIVE TV"},
-        {"url": "http://liveloveyou.my.id/ec147502/lv.txt", "group": "LIVE EVENT AUTO"},
-        {"url": "http://liveloveyou.my.id/ec147502/belum.html", "group": "JADWAL EVENT AUTO"},
-        {"url": "http://liveloveyou.my.id/ec147502/pelme2.html", "group": "LIVE EVENT MANUAL"},
-        {"url": "http://liveloveyou.my.id/ec147502/pelme3.html", "group": "SPORTS"},
-        {"url": "http://liveloveyou.my.id/ec147502/pelme4.html", "group": "TV LUAR NEGERI"},
+        {"url": "http://liveloveyou.my.id/566450a1/ux.html", "group": "LIVE TV NEW"},
+        {"url": "http://liveloveyou.my.id/566450a1/pelme1.html", "group": "LIVE TV"},
+        {"url": "http://liveloveyou.my.id/566450a1/lv.txt", "group": "LIVE EVENT AUTO"},
+        {"url": "http://liveloveyou.my.id/566450a1/belum.html", "group": "JADWAL EVENT AUTO"},
+        {"url": "http://liveloveyou.my.id/566450a1/pelme2.html", "group": "LIVE EVENT MANUAL"},
+        {"url": "http://liveloveyou.my.id/566450a1/pelme3.html", "group": "SPORTS"},
+        {"url": "http://liveloveyou.my.id/566450a1/pelme4.html", "group": "TV LUAR NEGERI"},
         {"url": "http://gvision-web.vercel.app/dio.txt", "group": "RADIO"}
     ]
     # -------------------------------------------------
