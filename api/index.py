@@ -12,7 +12,7 @@ def get_playlist(path):
         {"url": "http://liveloveyou.my.id/566450a1/pelme1.html", "group": "LIVE TV"},
         {"url": "http://liveloveyou.my.id/566450a1/lv.txt", "group": "LIVE EVENT AUTO"},
         {"url": "https://gvision-web.vercel.app/nw/piIdun.html", "group": "PIALA DUNIA 2026"},
-        {"url": "http://liveloveyou.my.id/566450a1/belum.html", "group": "JADWAL EVENT AUTO"},
+        {"url": "http://liveloveyou.my.id/tesr/belum.html", "group": "JADWAL EVENT AUTO"},
         {"url": "http://liveloveyou.my.id/566450a1/pelme2.html", "group": "LIVE EVENT MANUAL"},
         {"url": "http://liveloveyou.my.id/566450a1/pelme3.html", "group": "SPORTS"},
         {"url": "http://liveloveyou.my.id/566450a1/pelme4.html", "group": "TV LUAR NEGERI"},
