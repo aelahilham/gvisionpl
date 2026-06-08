@@ -21,6 +21,7 @@ def get_playlist(path):
     # -------------------------------------------------
 
     merged_content = "#EXTM3U\n"
+    seen_urls = set()  # ---> UBAHAN: Variabel buat nginget URL yang udah masuk
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
@@ -32,21 +33,42 @@ def get_playlist(path):
             response = requests.get(pl["url"], headers=headers, timeout=10)
             
             if response.status_code == 200:
-                # ---> FIX 1: Paksa Python baca hasil tarikan sebagai UTF-8
                 response.encoding = 'utf-8'
-                
                 lines = response.text.splitlines()
+                
+                current_extinf = ""
+                
                 for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                        
                     if line.startswith("#EXTM3U"):
                         continue
                     
+                    # Simpan metadata channel sementara
                     if line.startswith("#EXTINF"):
                         if "group-title=" not in line:
                             line = line.replace("#EXTINF:-1", f'#EXTINF:-1 group-title="{pl["group"]}"')
-                    
-                    merged_content += line + "\n"
+                        current_extinf = line
+                            
+                    # Kalau nemu baris URL Streaming
+                    elif not line.startswith("#"):
+                        stream_url = line # Ini adalah link streamingnya
+                        
+                        # Cek apakah URL udah pernah direkam
+                        if current_extinf and stream_url not in seen_urls:
+                            seen_urls.add(stream_url)
+                            merged_content += current_extinf + "\n" + stream_url + "\n"
+                        
+                        # Reset untuk channel berikutnya
+                        current_extinf = ""
+                        
+                    # Handle tag tambahan IPTV (misal: #EXTVLCOPT)
+                    elif line.startswith("#") and current_extinf:
+                        current_extinf += "\n" + line
+                        
         except Exception:
             pass 
 
-    # ---> FIX 2: Kasih tau aplikasi IPTV lo kalo output ini formatnya UTF-8
     return Response(merged_content, mimetype='audio/mpegurl; charset=utf-8')
