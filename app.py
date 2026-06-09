@@ -33,7 +33,7 @@ def fetch_playlist(url):
 @app.route('/<path:path>')
 def get_playlist(path):
     playlists = [
-        {"url": "http://liveloveyou.my.id/94e3c4af/ux.html", "group": "LIVE TV NEW"},
+		{"url": "http://liveloveyou.my.id/94e3c4af/ux.html", "group": "LIVE TV NEW"},
         {"url": "http://liveloveyou.my.id/94e3c4af/pelme1.html", "group": "LIVE TV"},
         {"url": "http://liveloveyou.my.id/94e3c4af/lv.txt", "group": "LIVE EVENT AUTO"},
         {"url": "https://gvision-web.vercel.app/nw/piIdun.html", "group": "PIALA DUNIA 2026"},
@@ -65,32 +65,41 @@ def get_playlist(path):
             
             if line.startswith("#EXTINF"):
                 
-                # ---> FIX UTAMA: Sapu bersih koma yang salah tempat!
+                # 1. Bersihin koma nyasar
                 if line.count(',') > 1:
-                    # Pecah baris berdasarkan SATU koma paling terakhir aja
                     attrs, name = line.rsplit(',', 1)
-                    
-                    # Hapus koma yang nempel setelah tanda kutip (misal: group-title="...", )
                     attrs = attrs.replace('",', '" ')
-                    # Hapus koma yang nyelip sebelum nama atribut (misal: , ch-number=)
                     attrs = re.sub(r',\s*(?=[a-zA-Z0-9_-]+=)', ' ', attrs)
-                    # Hapus koma persis setelah durasi (misal: #EXTINF:-1,)
                     attrs = re.sub(r'^(#EXTINF:[-0-9]+),', r'\1 ', attrs)
-                    
-                    # Gabungin lagi jadi baris yang bener
                     line = f"{attrs},{name}"
                 
-                # Inject group-title biar rapi
-                if "group-title=" not in line:
-                    line = re.sub(r'^(#EXTINF:[-0-9]+)\s*', rf'\1 group-title="{pl["group"]}" ', line)
+                # ---> FITUR BARU: Pemaksa CAPSLOCK
+                if "," in line:
+                    attrs, name = line.rsplit(',', 1)
+                    
+                    # Ubah Nama Channel jadi HURUF BESAR
+                    name = name.strip().upper()
+                    
+                    # Ubah Group Title jadi HURUF BESAR
+                    if "group-title=" not in attrs:
+                        # Kalau ga ada, suntik dari variabel playlists dan langsung di-upper()
+                        attrs = re.sub(r'^(#EXTINF:[-0-9]+)\s*', rf'\1 group-title="{pl["group"].upper()}" ', attrs)
+                    else:
+                        # Kalau udah ada dari asalnya, cari isinya dan ubah jadi upper()
+                        def capslock_group(match):
+                            return f'group-title="{match.group(1).upper()}"'
+                        attrs = re.sub(r'group-title="([^"]+)"', capslock_group, attrs)
+                        
+                    # Jahit kembali atribut dan nama channel
+                    line = f"{attrs},{name}"
                 
-                # Sekarang ngekstrak channel name udah pasti aman dari koma terakhir
-                channel_name = line.split(",")[-1].strip().lower()
+                # Ekstrak untuk kebutuhan ngecek duplikat dan ngecek Base64 
+                # (Ini tetep di-lower() biar engine pencariannya gak error karena beda huruf besar/kecil)
+                channel_name_for_check = line.split(",")[-1].strip().lower()
                 
-                # Deteksi Base64 (Tetep diadain buat jaga-jaga playlist lain yang pakai Base64)
                 if re.search(r'tvg-logo=["\']data:image/', line, flags=re.IGNORECASE):
                     safe_url = quote(pl["url"])
-                    safe_ch = quote(channel_name)
+                    safe_ch = quote(channel_name_for_check)
                     new_logo_url = f"{request.host_url}logo?pl_url={safe_url}&ch={safe_ch}"
                     line = re.sub(r'tvg-logo=["\']data:image/[^"\']+["\']', f'tvg-logo="{new_logo_url}"', line, flags=re.IGNORECASE)
 
@@ -103,7 +112,6 @@ def get_playlist(path):
                     merged_content += current_extinf + "\n" + stream_url + "\n"
                 
                 current_extinf = ""
-                channel_name = ""
                 
             elif line.startswith("#") and current_extinf:
                 current_extinf += "\n" + line
