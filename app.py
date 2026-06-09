@@ -33,14 +33,14 @@ def fetch_playlist(url):
 @app.route('/<path:path>')
 def get_playlist(path):
     playlists = [
-        {"url": "http://liveloveyou.my.id/4385eac8/ux.html", "group": "LIVE TV NEW"},
-        {"url": "http://liveloveyou.my.id/4385eac8/pelme1.html", "group": "LIVE TV"},
-        {"url": "http://liveloveyou.my.id/4385eac8/lv.txt", "group": "LIVE EVENT AUTO"},
+        {"url": "http://liveloveyou.my.id/94e3c4af/ux.html", "group": "LIVE TV NEW"},
+        {"url": "http://liveloveyou.my.id/94e3c4af/pelme1.html", "group": "LIVE TV"},
+        {"url": "http://liveloveyou.my.id/94e3c4af/lv.txt", "group": "LIVE EVENT AUTO"},
         {"url": "https://gvision-web.vercel.app/nw/piIdun.html", "group": "PIALA DUNIA 2026"},
         {"url": "http://liveloveyou.my.id/tesr/belum.html", "group": "JADWAL EVENT AUTO"},
-        {"url": "http://liveloveyou.my.id/4385eac8/pelme2.html", "group": "LIVE EVENT MANUAL"},
-        {"url": "http://liveloveyou.my.id/4385eac8/pelme3.html", "group": "SPORTS"},
-        {"url": "http://liveloveyou.my.id/4385eac8/pelme4.html", "group": "TV LUAR NEGERI"},
+        {"url": "http://liveloveyou.my.id/94e3c4af/pelme2.html", "group": "LIVE EVENT MANUAL"},
+        {"url": "http://liveloveyou.my.id/94e3c4af/pelme3.html", "group": "SPORTS"},
+        {"url": "http://liveloveyou.my.id/94e3c4af/pelme4.html", "group": "TV LUAR NEGERI"},
         {"url": "http://gvision-web.vercel.app/dio.txt", "group": "RADIO"}
     ]
 
