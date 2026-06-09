@@ -8,7 +8,7 @@ from urllib.parse import quote, unquote
 app = Flask(__name__)
 
 SOURCE_CACHE = {}
-CACHE_TTL = 300  # Cache 5 menit
+CACHE_TTL = 300 
 
 def fetch_playlist(url):
     now = time.time()
@@ -64,23 +64,34 @@ def get_playlist(path):
                 continue
             
             if line.startswith("#EXTINF"):
-                # ---> FIX A: Inject group-title lebih aman dan dinamis (antisipasi spasi ilang)
+                
+                # ---> FIX UTAMA: Sapu bersih koma yang salah tempat!
+                if line.count(',') > 1:
+                    # Pecah baris berdasarkan SATU koma paling terakhir aja
+                    attrs, name = line.rsplit(',', 1)
+                    
+                    # Hapus koma yang nempel setelah tanda kutip (misal: group-title="...", )
+                    attrs = attrs.replace('",', '" ')
+                    # Hapus koma yang nyelip sebelum nama atribut (misal: , ch-number=)
+                    attrs = re.sub(r',\s*(?=[a-zA-Z0-9_-]+=)', ' ', attrs)
+                    # Hapus koma persis setelah durasi (misal: #EXTINF:-1,)
+                    attrs = re.sub(r'^(#EXTINF:[-0-9]+),', r'\1 ', attrs)
+                    
+                    # Gabungin lagi jadi baris yang bener
+                    line = f"{attrs},{name}"
+                
+                # Inject group-title biar rapi
                 if "group-title=" not in line:
                     line = re.sub(r'^(#EXTINF:[-0-9]+)\s*', rf'\1 group-title="{pl["group"]}" ', line)
                 
-                # Ekstrak nama channel
-                if "," in line:
-                    channel_name = line.split(",")[-1].strip().lower()
-                else:
-                    channel_name = line.lower()
+                # Sekarang ngekstrak channel name udah pasti aman dari koma terakhir
+                channel_name = line.split(",")[-1].strip().lower()
                 
-                # ---> FIX B: Deteksi Base64 sakti (Support Kutip 1, Kutip 2, huruf besar/kecil)
+                # Deteksi Base64 (Tetep diadain buat jaga-jaga playlist lain yang pakai Base64)
                 if re.search(r'tvg-logo=["\']data:image/', line, flags=re.IGNORECASE):
                     safe_url = quote(pl["url"])
                     safe_ch = quote(channel_name)
                     new_logo_url = f"{request.host_url}logo?pl_url={safe_url}&ch={safe_ch}"
-                    
-                    # Hapus Base64 aslinya secara fleksibel
                     line = re.sub(r'tvg-logo=["\']data:image/[^"\']+["\']', f'tvg-logo="{new_logo_url}"', line, flags=re.IGNORECASE)
 
                 current_extinf = line
@@ -115,14 +126,11 @@ def serve_logo():
     for line in lines:
         if line.startswith("#EXTINF"):
             current_ch = line.split(",")[-1].strip().lower() if "," in line else line.lower()
-            
             if current_ch == channel_name.lower():
-                # ---> FIX C: Parser Endpoint Logo disesuaikan dengan Regex yang baru
                 match = re.search(r'tvg-logo=["\']data:image/([^;]+);base64,([^"\']+)["\']', line, flags=re.IGNORECASE)
                 if match:
                     img_format = match.group(1)
                     b64_data = match.group(2)
-                    
                     try:
                         img_bytes = base64.b64decode(b64_data)
                         return Response(
