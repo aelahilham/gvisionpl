@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/playlist.m3u",
-      "destination": "/api/index.py"
-    }
-  ]
-}
