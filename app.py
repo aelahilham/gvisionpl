@@ -3,6 +3,7 @@ import requests
 import re
 import base64
 import time
+import unicodedata # ---> TAMBAHAN: Library pembaca DNA karakter
 from urllib.parse import quote, unquote
 
 app = Flask(__name__)
@@ -28,6 +29,18 @@ def fetch_playlist(url):
     except Exception:
         pass
     return None
+
+# ---> FUNGSI BARU: Pembersih karakter sakti mandraguna
+def sanitize_text(text):
+    # Cc = Control, Cf = Format, Co = Private Use, Cn = Unassigned, Cs = Surrogate
+    bad_categories = {'Cc', 'Cf', 'Co', 'Cn', 'Cs'}
+    
+    # Saring karakter satu per satu
+    cleaned = ''.join(c for c in text if unicodedata.category(c) not in bad_categories)
+    
+    # Rapihin spasi ganda dan hapus spasi di awal/akhir
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -72,27 +85,19 @@ def get_playlist(path):
                     
                 rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
                 
-                channel_name_clean = rest_of_line.replace(',', ' ').strip()
+                channel_name_raw = rest_of_line.replace(',', ' ').strip()
                 
-                # ---> FIX BLANK CHARACTERS (SURGICAL STRIKE): 
-                # \uE000-\uF8FF = Karakter PUA (Logo font aneh yang sering jadi kotak)
-                # \u200B\u200C\uFEFF = Zero-width space (Spasi siluman)
-                # \u200E\u200F\u202A-\u202E = LTR/RTL formatting marks
-                bad_chars = r'[\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u2064\uFEFF\uE000-\uF8FF]'
-                channel_name_clean = re.sub(bad_chars, '', channel_name_clean)
-                
-                channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean).strip() 
+                # ---> PANGGIL FUNGSI PEMBERSIH DI SINI
+                channel_name_clean = sanitize_text(channel_name_raw)
                 channel_name_clean = channel_name_clean.upper() 
                 
                 channel_name_for_check = channel_name_clean.lower()
                 
                 group_val = attr_dict.pop("group-title", None)
                 if not group_val:
-                    group_val = pl["group"].upper()
+                    group_val = sanitize_text(pl["group"]).upper()
                 else:
-                    # Bersihin group title juga biar aman
-                    group_val = re.sub(bad_chars, '', group_val)
-                    group_val = re.sub(r'\s+', ' ', group_val).strip().upper()
+                    group_val = sanitize_text(group_val).upper()
                     
                 if "tvg-logo" in attr_dict and attr_dict["tvg-logo"].lower().startswith("data:image/"):
                     safe_url = quote(pl["url"])
@@ -148,13 +153,10 @@ def serve_logo():
                 
             rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
             
-            channel_name_clean = rest_of_line.replace(',', ' ').strip()
+            channel_name_raw = rest_of_line.replace(',', ' ').strip()
             
-            # Terapin Regex Surgical di Endpoint Logo juga
-            bad_chars = r'[\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u2064\uFEFF\uE000-\uF8FF]'
-            channel_name_clean = re.sub(bad_chars, '', channel_name_clean)
-            channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean).strip()
-            
+            # ---> PANGGIL FUNGSI PEMBERSIH DI ENDPOINT LOGO JUGA
+            channel_name_clean = sanitize_text(channel_name_raw)
             current_ch = channel_name_clean.lower()
             
             if current_ch == channel_name.lower():
