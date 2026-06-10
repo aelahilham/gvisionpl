@@ -33,7 +33,7 @@ def fetch_playlist(url):
 @app.route('/<path:path>')
 def get_playlist(path):
     playlists = [
-	    {"url": "http://liveloveyou.my.id/97b9ac12/ux.html", "group": "LIVE TV NEW"},
+		{"url": "http://liveloveyou.my.id/97b9ac12/ux.html", "group": "LIVE TV NEW"},
         {"url": "http://liveloveyou.my.id/97b9ac12/pelme1.html", "group": "LIVE TV"},
         {"url": "http://liveloveyou.my.id/97b9ac12/lv.txt", "group": "LIVE EVENT AUTO"},
         {"url": "https://gvision-web.vercel.app/nw/piIdun.html", "group": "PIALA DUNIA 2026"},
@@ -61,42 +61,47 @@ def get_playlist(path):
                 continue
             
             if line.startswith("#EXTINF"):
-                # 1. Pisahkan durasi (#EXTINF:-1)
                 duration_match = re.search(r'^(#EXTINF:\s*[-0-9]+)', line)
                 duration = duration_match.group(1) if duration_match else "#EXTINF:-1"
                 rest_of_line = line[len(duration):]
                 
-                # 2. Ekstrak atribut yang valid ke dalam dictionary
                 attr_dict = {}
                 def extract_attr(match):
                     attr_dict[match.group(1)] = match.group(2)
-                    return "" # Hapus teks atribut dari baris
+                    return "" 
                     
                 rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
                 
-                # 3. Sisa teks yang hancur/gantung kita sapu jadi nama channel
                 channel_name_clean = rest_of_line.replace(',', ' ').strip()
-                channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean) # Rapihin spasi
-                channel_name_clean = channel_name_clean.upper() # CAPSLOCK Nama Channel
+                channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean) 
+                channel_name_clean = channel_name_clean.upper() 
                 
                 channel_name_for_check = channel_name_clean.lower()
                 
-                # 4. Handle Group Title (CAPSLOCK)
-                if "group-title" not in attr_dict:
-                    attr_dict["group-title"] = pl["group"].upper()
+                # ---> FIX SPARKLE: Ekstrak group-title pakai .pop() biar urutannya bisa kita kontrol
+                group_val = attr_dict.pop("group-title", None)
+                if not group_val:
+                    group_val = pl["group"].upper()
                 else:
-                    attr_dict["group-title"] = attr_dict["group-title"].upper()
+                    group_val = group_val.upper()
                     
-                # 5. Handle Base64 Logo (Langsung replace di dalam dictionary)
                 if "tvg-logo" in attr_dict and attr_dict["tvg-logo"].lower().startswith("data:image/"):
                     safe_url = quote(pl["url"])
                     safe_ch = quote(channel_name_for_check)
                     new_logo_url = f"{request.host_url}logo?pl_url={safe_url}&ch={safe_ch}"
                     attr_dict["tvg-logo"] = new_logo_url
                     
-                # 6. Jahit ulang barisnya jadi bersih sempurna
-                new_attrs = " ".join([f'{k}="{v}"' for k, v in attr_dict.items()])
-                current_extinf = f"{duration} {new_attrs},{channel_name_clean}"
+                # ---> FIX SPARKLE: Jahit ulang dengan group-title wajib di paling depan
+                new_attrs = f'group-title="{group_val}"'
+                for k, v in attr_dict.items():
+                    new_attrs += f' {k}="{v}"'
+                    
+                # ---> FIX SPARKLE: Kasih spasi sebelum koma ( , ) biar parsernya gak nabrak
+                current_extinf = f"{duration} {new_attrs} , {channel_name_clean}"
+                
+            # ---> FIX SPARKLE: Bunuh tag EXTGRP bawaan provider yang berantakan
+            elif line.startswith("#EXTGRP"):
+                continue
                     
             elif not line.startswith("#"):
                 stream_url = line 
@@ -126,7 +131,6 @@ def serve_logo():
     lines = text.splitlines()
     for line in lines:
         if line.startswith("#EXTINF"):
-            # Pakai ekstraksi yang sama persis biar gak miss-match saat nyari channel
             duration_match = re.search(r'^(#EXTINF:\s*[-0-9]+)', line)
             duration = duration_match.group(1) if duration_match else "#EXTINF:-1"
             rest_of_line = line[len(duration):]
