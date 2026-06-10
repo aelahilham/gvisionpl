@@ -73,17 +73,26 @@ def get_playlist(path):
                 rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
                 
                 channel_name_clean = rest_of_line.replace(',', ' ').strip()
-                channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean) 
+                
+                # ---> FIX BLANK CHARACTERS (SURGICAL STRIKE): 
+                # \uE000-\uF8FF = Karakter PUA (Logo font aneh yang sering jadi kotak)
+                # \u200B\u200C\uFEFF = Zero-width space (Spasi siluman)
+                # \u200E\u200F\u202A-\u202E = LTR/RTL formatting marks
+                bad_chars = r'[\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u2064\uFEFF\uE000-\uF8FF]'
+                channel_name_clean = re.sub(bad_chars, '', channel_name_clean)
+                
+                channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean).strip() 
                 channel_name_clean = channel_name_clean.upper() 
                 
                 channel_name_for_check = channel_name_clean.lower()
                 
-                # ---> FIX SPARKLE: Ekstrak group-title pakai .pop() biar urutannya bisa kita kontrol
                 group_val = attr_dict.pop("group-title", None)
                 if not group_val:
                     group_val = pl["group"].upper()
                 else:
-                    group_val = group_val.upper()
+                    # Bersihin group title juga biar aman
+                    group_val = re.sub(bad_chars, '', group_val)
+                    group_val = re.sub(r'\s+', ' ', group_val).strip().upper()
                     
                 if "tvg-logo" in attr_dict and attr_dict["tvg-logo"].lower().startswith("data:image/"):
                     safe_url = quote(pl["url"])
@@ -91,15 +100,12 @@ def get_playlist(path):
                     new_logo_url = f"{request.host_url}logo?pl_url={safe_url}&ch={safe_ch}"
                     attr_dict["tvg-logo"] = new_logo_url
                     
-                # ---> FIX SPARKLE: Jahit ulang dengan group-title wajib di paling depan
                 new_attrs = f'group-title="{group_val}"'
                 for k, v in attr_dict.items():
                     new_attrs += f' {k}="{v}"'
                     
-                # ---> FIX SPARKLE: Kasih spasi sebelum koma ( , ) biar parsernya gak nabrak
                 current_extinf = f"{duration} {new_attrs} , {channel_name_clean}"
                 
-            # ---> FIX SPARKLE: Bunuh tag EXTGRP bawaan provider yang berantakan
             elif line.startswith("#EXTGRP"):
                 continue
                     
@@ -143,7 +149,12 @@ def serve_logo():
             rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
             
             channel_name_clean = rest_of_line.replace(',', ' ').strip()
-            channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean)
+            
+            # Terapin Regex Surgical di Endpoint Logo juga
+            bad_chars = r'[\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u2064\uFEFF\uE000-\uF8FF]'
+            channel_name_clean = re.sub(bad_chars, '', channel_name_clean)
+            channel_name_clean = re.sub(r'\s+', ' ', channel_name_clean).strip()
+            
             current_ch = channel_name_clean.lower()
             
             if current_ch == channel_name.lower():
