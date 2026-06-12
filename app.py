@@ -29,6 +29,18 @@ def fetch_playlist(url):
         pass
     return None
 
+# ---> FUNGSI BARU: Pembersih karakter sakti mandraguna
+def sanitize_text(text):
+    # Cc = Control, Cf = Format, Co = Private Use, Cn = Unassigned, Cs = Surrogate
+    bad_categories = {'Cc', 'Cf', 'Co', 'Cn', 'Cs'}
+    
+    # Saring karakter satu per satu
+    cleaned = ''.join(c for c in text if unicodedata.category(c) not in bad_categories)
+    
+    # Rapihin spasi ganda dan hapus spasi di awal/akhir
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def get_playlist(path):
