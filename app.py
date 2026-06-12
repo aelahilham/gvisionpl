@@ -3,6 +3,7 @@ import requests
 import re
 import base64
 import time
+import unicodedata
 from urllib.parse import quote, unquote
 
 app = Flask(__name__)
@@ -29,31 +30,27 @@ def fetch_playlist(url):
         pass
     return None
 
-# ---> FUNGSI BARU: Pembersih karakter sakti mandraguna
-def sanitize_text(text):
-    # Cc = Control, Cf = Format, Co = Private Use, Cn = Unassigned, Cs = Surrogate
-    bad_categories = {'Cc', 'Cf', 'Co', 'Cn', 'Cs'}
-    
-    # Saring karakter satu per satu
-    cleaned = ''.join(c for c in text if unicodedata.category(c) not in bad_categories)
-    
-    # Rapihin spasi ganda dan hapus spasi di awal/akhir
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    return cleaned
-
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def get_playlist(path):
     playlists = [
-		{"url": "http://liveloveyou.my.id/ecbed245/ux.html", "group": "LIVE TV NEW"},
-        {"url": "http://liveloveyou.my.id/ecbed245/pelme1.html", "group": "LIVE TV"},
-        {"url": "http://liveloveyou.my.id/ecbed245/lv.txt", "group": "LIVE EVENT AUTO"},
-        {"url": "https://gvision-web.vercel.app/nw/piIdun.html", "group": "PIALA DUNIA 2026"},
-        {"url": "http://liveloveyou.my.id/tesr/belum.html", "group": "JADWAL EVENT AUTO"},
-        {"url": "http://liveloveyou.my.id/ecbed245/pelme2.html", "group": "LIVE EVENT MANUAL"},
-        {"url": "http://liveloveyou.my.id/ecbed245/pelme3.html", "group": "SPORTS"},
-        {"url": "http://liveloveyou.my.id/ecbed245/pelme4.html", "group": "TV LUAR NEGERI"},
-        {"url": "http://gvision-web.vercel.app/dio.txt", "group": "RADIO"}
+        {"url": "https://ayo.maling.pl/Vision/channels.php", "group": "VISION+"},
+        {"url": "https://ayomalinggo.blog/maling/malingenak.m3u", "group": "AUTO LIVE 1"},
+        {"url": "https://ayomalinggo.blog/maling/XXXX69/tvri.php", "group": "TVRI CHANNEL"},
+        {"url": "https://malingya.goblogtv.workers.dev/", "group": "LIVE AUTO II"},
+        {"url": "https://ayo.maling.pl/thth/1.php", "group": "EVENT+"},
+        {"url": "https://enakmalinggo.blog/maling/93.php", "group": "LIVE TV"},
+        {"url": "https://ayomalinggo.blog/maling/Nweb.php?action=m3u", "group": "SPORT ARB"},
+        {"url": "https://ayomalinggo.blog/maling/XXXX69/hasilnya.php", "group": "SPORT NEW"},
+        {"url": "http://hometv.biz.id/get.php?username=SIARAN_TRIAL&password=dZhP257HGH&type=m3u_plus&output=m3u8", "group": "TV MALING"},
+        {"url": "https://enakmalinggo.blog/maling/logo.php", "group": "OLAHRAGA"},
+        {"url": "https://raw.githubusercontent.com/apistech/project/refs/heads/main/IndihomeTV.m3u", "group": "INDIHOME"},
+        {"url": "https://enakmalinggo.blog/maling/dens.php", "group": "DENS"},
+        {"url": "https://thth.dasarweddus.workers.dev/", "group": "AUTO 1 SPORT"},
+        {"url": "https://ayo.maling.pl/Rak/1.php", "group": "AUTO 2 SPORT"},
+        {"url": "https://ayomalinggo.blog/maling/TOKEN/sbs_m3u.php", "group": "WORLD CUP 2026"},
+        {"url": "https://ayomalinggo.blog/maling/XXXX69/ch.php", "group": "TV CHANNEL"},
+        {"url": "https://ayomalinggo.blog/maling/XXXX69/event.php", "group": "EVENT"}
     ]
 
     merged_content = "#EXTM3U\n"
@@ -86,9 +83,13 @@ def get_playlist(path):
                     attrs = re.sub(r'^(#EXTINF:[-0-9]+),', r'\1 ', attrs)
                     line = f"{attrs},{name}"
                 
-                # 2. Pisahin Grup Duplikat & Pemaksa CAPSLOCK
+                # 2. Proses Nama, Karakter Gaib, dan Duplikasi Grup
                 if "," in line:
                     attrs, name = line.rsplit(',', 1)
+                    
+                    # ---> FITUR BARU: Basmi Karakter Gaib
+                    # Kategori: Control (Cc), Format (Cf), Unassigned (Cn), Private Use (Co), Surrogate (Cs)
+                    name = "".join(c for c in name if unicodedata.category(c) not in ['Cc', 'Cf', 'Cn', 'Co', 'Cs'])
                     
                     # Ubah Nama Channel jadi HURUF BESAR
                     name = name.strip().upper()
@@ -100,17 +101,18 @@ def get_playlist(path):
                     else:
                         base_group_name = pl["group"].upper()
                     
+                    # Basmi karakter gaib di nama grup juga buat jaga-jaga
+                    base_group_name = "".join(c for c in base_group_name if unicodedata.category(c) not in ['Cc', 'Cf', 'Cn', 'Co', 'Cs'])
+                    
                     group_key = (pl["url"], base_group_name)
                     
-                    # LOGIKA BARU: Penomoran pakai kurung siku [2], [3], dst
+                    # Penomoran pakai kurung siku [2], [3], dst
                     if group_key not in group_versions:
                         if base_group_name not in group_counts:
                             group_counts[base_group_name] = 1
-                            # Kemunculan pertama, gak pakai angka
                             group_versions[group_key] = base_group_name
                         else:
                             group_counts[base_group_name] += 1
-                            # Kemunculan kedua dan seterusnya, pakai format [Angka]
                             group_versions[group_key] = f"{base_group_name} [{group_counts[base_group_name]}]"
                     
                     final_group_name = group_versions[group_key]
