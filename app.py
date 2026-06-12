@@ -3,7 +3,6 @@ import requests
 import re
 import base64
 import time
-import unicodedata # ---> TAMBAHAN: Library pembaca DNA karakter
 from urllib.parse import quote, unquote
 
 app = Flask(__name__)
@@ -30,18 +29,6 @@ def fetch_playlist(url):
         pass
     return None
 
-# ---> FUNGSI BARU: Pembersih karakter sakti mandraguna
-def sanitize_text(text):
-    # Cc = Control, Cf = Format, Co = Private Use, Cn = Unassigned, Cs = Surrogate
-    bad_categories = {'Cc', 'Cf', 'Co', 'Cn', 'Cs'}
-    
-    # Saring karakter satu per satu
-    cleaned = ''.join(c for c in text if unicodedata.category(c) not in bad_categories)
-    
-    # Rapihin spasi ganda dan hapus spasi di awal/akhir
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    return cleaned
-
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def get_playlist(path):
@@ -58,7 +45,9 @@ def get_playlist(path):
     ]
 
     merged_content = "#EXTM3U\n"
-    seen_urls = set()
+    
+    group_counts = {}
+    group_versions = {}
     
     for pl in playlists:
         playlist_text = fetch_playlist(pl["url"])
@@ -70,54 +59,73 @@ def get_playlist(path):
         
         for line in lines:
             line = line.strip()
-            if not line or line.startswith("#EXTM3U"):
+            if not line:
+                continue
+            if line.startswith("#EXTM3U"):
                 continue
             
             if line.startswith("#EXTINF"):
-                duration_match = re.search(r'^(#EXTINF:\s*[-0-9]+)', line)
-                duration = duration_match.group(1) if duration_match else "#EXTINF:-1"
-                rest_of_line = line[len(duration):]
                 
-                attr_dict = {}
-                def extract_attr(match):
-                    attr_dict[match.group(1)] = match.group(2)
-                    return "" 
+                # 1. Bersihin koma nyasar
+                if line.count(',') > 1:
+                    attrs, name = line.rsplit(',', 1)
+                    attrs = attrs.replace('",', '" ')
+                    attrs = re.sub(r',\s*(?=[a-zA-Z0-9_-]+=)', ' ', attrs)
+                    attrs = re.sub(r'^(#EXTINF:[-0-9]+),', r'\1 ', attrs)
+                    line = f"{attrs},{name}"
+                
+                # 2. Pisahin Grup Duplikat & Pemaksa CAPSLOCK
+                if "," in line:
+                    attrs, name = line.rsplit(',', 1)
                     
-                rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
-                
-                channel_name_raw = rest_of_line.replace(',', ' ').strip()
-                
-                # ---> PANGGIL FUNGSI PEMBERSIH DI SINI
-                channel_name_clean = sanitize_text(channel_name_raw)
-                channel_name_clean = channel_name_clean.upper() 
-                
-                channel_name_for_check = channel_name_clean.lower()
-                
-                group_val = attr_dict.pop("group-title", None)
-                if not group_val:
-                    group_val = sanitize_text(pl["group"]).upper()
-                else:
-                    group_val = sanitize_text(group_val).upper()
+                    # Ubah Nama Channel jadi HURUF BESAR
+                    name = name.strip().upper()
                     
-                if "tvg-logo" in attr_dict and attr_dict["tvg-logo"].lower().startswith("data:image/"):
+                    # Ekstrak base group name
+                    match_group = re.search(r'group-title="([^"]+)"', attrs)
+                    if match_group:
+                        base_group_name = match_group.group(1).upper()
+                    else:
+                        base_group_name = pl["group"].upper()
+                    
+                    group_key = (pl["url"], base_group_name)
+                    
+                    # LOGIKA BARU: Penomoran pakai kurung siku [2], [3], dst
+                    if group_key not in group_versions:
+                        if base_group_name not in group_counts:
+                            group_counts[base_group_name] = 1
+                            # Kemunculan pertama, gak pakai angka
+                            group_versions[group_key] = base_group_name
+                        else:
+                            group_counts[base_group_name] += 1
+                            # Kemunculan kedua dan seterusnya, pakai format [Angka]
+                            group_versions[group_key] = f"{base_group_name} [{group_counts[base_group_name]}]"
+                    
+                    final_group_name = group_versions[group_key]
+                    
+                    # Suntikkan final_group_name kembali ke atribut
+                    if match_group:
+                        attrs = re.sub(r'group-title="[^"]+"', f'group-title="{final_group_name}"', attrs)
+                    else:
+                        attrs = re.sub(r'^(#EXTINF:[-0-9]+)\s*', rf'\1 group-title="{final_group_name}" ', attrs)
+                        
+                    # Jahit kembali atribut dan nama channel
+                    line = f"{attrs},{name}"
+                
+                # 3. Ekstrak untuk kebutuhan ngecek Base64 (Tetap lowercase untuk engine)
+                channel_name_for_check = line.split(",")[-1].strip().lower()
+                
+                if re.search(r'tvg-logo=["\']data:image/', line, flags=re.IGNORECASE):
                     safe_url = quote(pl["url"])
                     safe_ch = quote(channel_name_for_check)
                     new_logo_url = f"{request.host_url}logo?pl_url={safe_url}&ch={safe_ch}"
-                    attr_dict["tvg-logo"] = new_logo_url
-                    
-                new_attrs = f'group-title="{group_val}"'
-                for k, v in attr_dict.items():
-                    new_attrs += f' {k}="{v}"'
-                    
-                current_extinf = f"{duration} {new_attrs} , {channel_name_clean}"
-                
-            elif line.startswith("#EXTGRP"):
-                continue
+                    line = re.sub(r'tvg-logo=["\']data:image/[^"\']+["\']', f'tvg-logo="{new_logo_url}"', line, flags=re.IGNORECASE)
+
+                current_extinf = line
                     
             elif not line.startswith("#"):
                 stream_url = line 
-                if current_extinf and stream_url not in seen_urls:
-                    seen_urls.add(stream_url)
+                if current_extinf:
                     merged_content += current_extinf + "\n" + stream_url + "\n"
                 
                 current_extinf = ""
@@ -142,38 +150,21 @@ def serve_logo():
     lines = text.splitlines()
     for line in lines:
         if line.startswith("#EXTINF"):
-            duration_match = re.search(r'^(#EXTINF:\s*[-0-9]+)', line)
-            duration = duration_match.group(1) if duration_match else "#EXTINF:-1"
-            rest_of_line = line[len(duration):]
-            
-            attr_dict = {}
-            def extract_attr(match):
-                attr_dict[match.group(1)] = match.group(2)
-                return ""
-                
-            rest_of_line = re.sub(r'([a-zA-Z0-9_-]+)=["\']([^"\']*)["\']', extract_attr, rest_of_line)
-            
-            channel_name_raw = rest_of_line.replace(',', ' ').strip()
-            
-            # ---> PANGGIL FUNGSI PEMBERSIH DI ENDPOINT LOGO JUGA
-            channel_name_clean = sanitize_text(channel_name_raw)
-            current_ch = channel_name_clean.lower()
-            
+            current_ch = line.split(",")[-1].strip().lower() if "," in line else line.lower()
             if current_ch == channel_name.lower():
-                if "tvg-logo" in attr_dict and attr_dict["tvg-logo"].lower().startswith("data:image/"):
-                    match = re.search(r'data:image/([^;]+);base64,(.+)', attr_dict["tvg-logo"], flags=re.IGNORECASE)
-                    if match:
-                        img_format = match.group(1)
-                        b64_data = match.group(2)
-                        try:
-                            img_bytes = base64.b64decode(b64_data)
-                            return Response(
-                                img_bytes, 
-                                mimetype=f'image/{img_format}',
-                                headers={'Cache-Control': 'public, max-age=2592000, s-maxage=2592000'}
-                            )
-                        except Exception:
-                            pass
+                match = re.search(r'tvg-logo=["\']data:image/([^;]+);base64,([^"\']+)["\']', line, flags=re.IGNORECASE)
+                if match:
+                    img_format = match.group(1)
+                    b64_data = match.group(2)
+                    try:
+                        img_bytes = base64.b64decode(b64_data)
+                        return Response(
+                            img_bytes, 
+                            mimetype=f'image/{img_format}',
+                            headers={'Cache-Control': 'public, max-age=2592000, s-maxage=2592000'}
+                        )
+                    except Exception:
+                        pass
                 break
                 
     return abort(404)
