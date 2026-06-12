@@ -46,14 +46,14 @@ def sanitize_text(text):
 @app.route('/<path:path>')
 def get_playlist(path):
     playlists = [
-		{"url": "http://liveloveyou.my.id/9e3315c4/ux.html", "group": "LIVE TV NEW"},
-        {"url": "http://liveloveyou.my.id/9e3315c4/pelme1.html", "group": "LIVE TV"},
-        {"url": "http://liveloveyou.my.id/9e3315c4/lv.txt", "group": "LIVE EVENT AUTO"},
+		{"url": "http://liveloveyou.my.id/ecbed245/ux.html", "group": "LIVE TV NEW"},
+        {"url": "http://liveloveyou.my.id/ecbed245/pelme1.html", "group": "LIVE TV"},
+        {"url": "http://liveloveyou.my.id/ecbed245/lv.txt", "group": "LIVE EVENT AUTO"},
         {"url": "https://gvision-web.vercel.app/nw/piIdun.html", "group": "PIALA DUNIA 2026"},
         {"url": "http://liveloveyou.my.id/tesr/belum.html", "group": "JADWAL EVENT AUTO"},
-        {"url": "http://liveloveyou.my.id/9e3315c4/pelme2.html", "group": "LIVE EVENT MANUAL"},
-        {"url": "http://liveloveyou.my.id/9e3315c4/pelme3.html", "group": "SPORTS"},
-        {"url": "http://liveloveyou.my.id/9e3315c4/pelme4.html", "group": "TV LUAR NEGERI"},
+        {"url": "http://liveloveyou.my.id/ecbed245/pelme2.html", "group": "LIVE EVENT MANUAL"},
+        {"url": "http://liveloveyou.my.id/ecbed245/pelme3.html", "group": "SPORTS"},
+        {"url": "http://liveloveyou.my.id/ecbed245/pelme4.html", "group": "TV LUAR NEGERI"},
         {"url": "http://gvision-web.vercel.app/dio.txt", "group": "RADIO"}
     ]
 
